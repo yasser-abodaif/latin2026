@@ -1,0 +1,73 @@
+import React from 'react'
+import { cn } from '@/lib/utils'
+import Image from 'next/image'
+import logo from '@/assets/logo-1.webp'
+import { SheetMenu } from './sheet-menu'
+import { Link } from '@/i18n/routing'
+import { ModeToggle } from './mode-toggle'
+import { LanguageSwitcher } from './language-switcher'
+import { LoginModal } from '@/app/[locale]/auth/login/(components)/login-modal'
+import { BranchSelect } from './branch-select'
+import { getTranslations } from 'next-intl/server'
+
+export async function NavBar() {
+  const t = await getTranslations('nav')
+  return (
+    <nav
+      className={cn(
+        'sticky top-0 z-50 border-b bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:bg-black/60'
+      )}
+    >
+      <div className={cn('mx-auto flex max-w-screen-2xl items-center justify-between px-4 py-2')}>
+        <div className="flex items-center gap-4">
+          <div className="hidden items-center gap-2 md:flex">
+            <span className="text-sm text-gray-500">{t('branch')}: </span>
+            <BranchSelect />
+          </div>
+          <div className="block md:hidden">
+            <SheetMenu />
+          </div>
+        </div>
+        {/* Desktop logo */}
+        <div className="hidden h-10 w-10 shrink-0 rounded-full border shadow-md md:block">
+          <Link href="/" className="cursor-pointer">
+            <Image src={logo} alt="Logo" />
+          </Link>
+        </div>
+        {/* Desktop main nav */}
+        <div className="hidden items-center gap-4 md:flex">
+          <Link href="/dashboard" className="text-sm text-foreground/80 hover:text-foreground">
+            {t('home')}
+          </Link>
+          <Link href="/students" className="text-sm text-foreground/80 hover:text-foreground">
+            {t('students')}
+          </Link>
+          <Link href="/courses" className="text-sm text-foreground/80 hover:text-foreground">
+            {t('courses')}
+          </Link>
+          <Link href="/receipts" className="text-sm text-foreground/80 hover:text-foreground">
+            {t('receipt')}
+          </Link>
+          <Link href="/messages" className="text-sm text-foreground/80 hover:text-foreground">
+            {t('messages')}
+          </Link>
+          <Link href="/leads" className="text-sm text-foreground/80 hover:text-foreground">
+            {t('leads')}
+          </Link>
+        </div>
+        <div className={cn('flex items-center justify-between')}>
+          <div className="hidden w-full !items-center !justify-center gap-2 md:flex">
+            <ModeToggle />
+            <LanguageSwitcher isIcon={false} />
+            <LoginModal isIcon={false} />
+          </div>
+          <div className="block h-10 w-10 shrink-0 rounded-full border shadow-md md:hidden">
+            <Link href="/" className="cursor-pointer">
+              <Image src={logo} alt="Logo" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </nav>
+  )
+}
