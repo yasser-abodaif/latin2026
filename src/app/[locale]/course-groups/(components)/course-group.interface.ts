@@ -12,6 +12,7 @@ export interface ICourseGroup {
   endDate: string
   instructorId: number
   courseId: number
+  branchId: number
   statusId: number
   studentIds: number[]
   students: IStudent[]

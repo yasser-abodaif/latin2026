@@ -4,6 +4,7 @@ export interface IReceipt {
   studentName: string
   amount: number
   date: string
+  receiptNumber?: string
   description: string
   type: string
   createdBy: string

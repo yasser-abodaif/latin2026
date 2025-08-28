@@ -31,6 +31,8 @@ import { useInstructorsLevels } from '../../help-tables/(components)'
 import { ICourseGroup } from './course-group.interface'
 import { DatePicker } from '@/components/ui/date-picker'
 import { useLabs } from '../../labs/(components)/useLabs'
+import { useBranches } from '../../branches/(components)/useBranches'
+import { useSelectedBranch } from '@/lib/hooks/useSelectedBranch'
 import { useGroupStatus } from './useGroupStatus'
 import { CourseGroupDays } from './group-days'
 import { CourseGroupStudents } from './group-students'
@@ -54,7 +56,9 @@ export const CourseGroupForm = ({ mode = formMode.create, data }: Props) => {
   const t = useTranslations('courseGroup')
   const [maxStudents, setMaxStudents] = useState(100)
   const courses = useCourses()
-  const { labs } = useLabs()
+  const selectedBranchId = useSelectedBranch()
+  const { labs } = useLabs(selectedBranchId || undefined)
+  const branches = useBranches()
   const groupStatus = useGroupStatus()
   const router = useRouter()
   const [price, setPrice] = useState(0)
@@ -63,6 +67,7 @@ export const CourseGroupForm = ({ mode = formMode.create, data }: Props) => {
     id: data?.id ?? undefined,
     name: data?.name ?? '',
     courseId: data?.courseId ?? 0,
+    branchId: data?.branchId ?? selectedBranchId ?? 0,
     startDate: data?.startDate ? new Date(data.startDate) : new Date(),
     endDate: data?.endDate ? new Date(data.endDate) : new Date(),
     instructorId: data?.instructorId ?? 0,
@@ -97,8 +102,13 @@ export const CourseGroupForm = ({ mode = formMode.create, data }: Props) => {
     const level = courses
       ?.find((course) => course.id === courseId)
       ?.levels.find((level) => level.id === levelId)
-    setPrice(level?.price ?? 0)
-    setValue('price', level?.price ?? 0)
+    const newPrice = level?.price ?? 0
+    setPrice(newPrice)
+    
+    // تأخير setValue لتجنب setState أثناء العرض
+    setTimeout(() => {
+      setValue('price', newPrice)
+    }, 0)
   }, [levelId, courseId, courses, setValue])
 
   const days = useGroupDays()
@@ -110,13 +120,35 @@ export const CourseGroupForm = ({ mode = formMode.create, data }: Props) => {
   useEffect(() => {
     if (selectedDays && selectedDays.length > 0 && startDate) {
       const startDay = new Date(startDate).getDay()
-      const calenderDays = [6, 0, 1, 2, 3, 4, 5]
-      const serverDays = [1, 2, 4, 8, 16, 32, 64]
+      const calenderDays = [6, 0, 1, 2, 3, 4, 5] // السبت=6, الأحد=0, الاثنين=1, الثلاثاء=2, الأربعاء=3, الخميس=4, الجمعة=5
+      const serverDays = [1, 2, 4, 8, 16, 32, 64] // قيم الخادم للأيام
       const startDayIndex = calenderDays.indexOf(startDay)
 
-      const isDayValid = selectedDays.some((day, index) => {
-        return startDayIndex === index
+      console.log('فحص تطابق الأيام:', {
+        startDate: startDate,
+        startDay: startDay,
+        startDayIndex: startDayIndex,
+        selectedDays: selectedDays,
+        calenderDays: calenderDays,
+        serverDays: serverDays,
+        daysFromAPI: days
       })
+
+      // تحويل selectedDays من IDs إلى server values للمقارنة
+      const selectedServerDays = selectedDays.map(dayId => {
+        const dayIndex = days.findIndex(d => d.id === dayId)
+        return dayIndex !== -1 ? serverDays[dayIndex] : null
+      }).filter(Boolean)
+
+      console.log('الأيام المحولة للخادم:', selectedServerDays)
+
+      // فحص إذا كان اليوم المحدد موجود في الأيام المختارة
+      const isDayValid = selectedDays.some(dayId => {
+        const dayIndex = days.findIndex(d => d.id === dayId)
+        return dayIndex === startDayIndex
+      })
+
+      console.log('هل التاريخ صحيح؟', isDayValid)
 
       if (!isDayValid) {
         setStartDateError(
@@ -130,7 +162,7 @@ export const CourseGroupForm = ({ mode = formMode.create, data }: Props) => {
     } else {
       setStartDateError(null)
     }
-  }, [selectedDays, startDate, t])
+  }, [selectedDays, startDate, t, days])
 
   useEffect(() => {
     if (startDate && levelId && selectedDays && selectedDays.length > 0) {
@@ -140,11 +172,41 @@ export const CourseGroupForm = ({ mode = formMode.create, data }: Props) => {
       if (level) {
         const endDate = new Date(startDate as Date)
         const totalDays = selectedDays.length
-        const weeksNeeded = level.sessionsCount / totalDays
-        endDate.setDate(endDate.getDate() + weeksNeeded * 7)
-        setValue('endDate', endDate)
+        const weeksNeeded = Math.ceil(level.sessionsCount / totalDays)
+        
+        console.log('حساب تاريخ النهاية:', {
+          startDate: startDate,
+          sessionsCount: level.sessionsCount,
+          totalDays: totalDays,
+          weeksNeeded: weeksNeeded,
+          calculatedEndDate: new Date(endDate.getTime() + weeksNeeded * 7 * 24 * 60 * 60 * 1000),
+          levelName: level.name,
+          levelId: level.id,
+          courseId: courseId,
+          courseName: courses?.find(c => c.id === courseId)?.name
+        })
+        
+        // تحذير إذا كان عدد المحاضرات غير متوقع
+        if (level.sessionsCount !== 30) {
+          console.warn('⚠️ عدد المحاضرات غير متوقع:', {
+            expected: 30,
+            actual: level.sessionsCount,
+            levelName: level.name,
+            courseId: courseId
+          })
+        }
+        
+        // استخدام طريقة أكثر دقة لحساب التاريخ
+        endDate.setTime(endDate.getTime() + weeksNeeded * 7 * 24 * 60 * 60 * 1000)
+        
+        // تأخير setValue لتجنب setState أثناء العرض
+        setTimeout(() => {
+          setValue('endDate', endDate)
+        }, 0)
       } else {
-        setValue('endDate', new Date())
+        setTimeout(() => {
+          setValue('endDate', new Date())
+        }, 0)
       }
     }
   }, [startDate, levelId, selectedDays, courses, courseId, setValue])
@@ -158,32 +220,96 @@ export const CourseGroupForm = ({ mode = formMode.create, data }: Props) => {
       if (level && level.sessionsDiortion && level.sessionsDiortion > 0) {
         const startTime = parseTime(startTimeVal as string)
         const endTime = addHoursToTime(startTime, level.sessionsDiortion)
-        setValue('endTime', formatToAmPm(endTime))
+        
+        // تأخير setValue لتجنب setState أثناء العرض
+        setTimeout(() => {
+          setValue('endTime', formatToAmPm(endTime))
+        }, 0)
       }
     }
   }, [startTimeVal, levelId, courseId, courses, setValue])
 
   useEffect(() => {
-    setValue('instructorId', 0)
-    setValue('levelId', 0)
+    // تأخير setValue لتجنب setState أثناء العرض
+    setTimeout(() => {
+      setValue('instructorId', 0)
+      setValue('levelId', 0)
+    }, 0)
     setPrice(0)
   }, [courseId, setValue])
 
   const onSubmit = async (values: CourseGroupSchema) => {
     try {
+      // Validate required fields before sending
+      // التحقق من الحقول المطلوبة
+      if (!values.courseId) {
+        toast.error(t('courseRequired', { default: 'Course is required' }))
+        return
+      }
+      if (!values.branchId) {
+        toast.error(t('branchRequired', { default: 'Branch is required' }))
+        return
+      }
+      if (!values.instructorId) {
+        toast.error(t('instructorRequired', { default: 'Instructor is required' }))
+        return
+      }
+      if (!values.levelId) {
+        toast.error(t('levelRequired', { default: 'Level is required' }))
+        return
+      }
+      if (!values.roomId) {
+        toast.error(t('roomRequired', { default: 'Room is required' }))
+        return
+      }
+      if (!values.days || values.days.length === 0) {
+        toast.error(t('daysRequired', { default: 'Days are required' }))
+        return
+      }
+      if (!values.startTime) {
+        toast.error(t('startTimeRequired', { default: 'Start time is required' }))
+        return
+      }
+      
+      if (startDateError) {
+        toast.error(startDateError)
+        return
+      }
+
+      console.log('📤 بيانات المجموعة المرسلة للخادم:', {
+        frontendCalculated: {
+          startDate: values.startDate,
+          startDateType: typeof values.startDate,
+          startDateString: values.startDate?.toString(),
+          endDate: values.endDate,
+          endDateType: typeof values.endDate,
+          endDateString: values.endDate?.toString(),
+          days: values.days,
+          startTime: values.startTime,
+          endTime: values.endTime
+        },
+        formValues: values,
+        selectedDaysNames: values.days.map(dayId => days.find(d => d.id === dayId)?.name).join(', '),
+        timezoneOffset: new Date().getTimezoneOffset(),
+        currentTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      })
+
       toast.info(t('creating'))
+      
       if (mode === formMode.edit && data?.id) {
         await updateCourseGroup(data.id, values)
         toast.success(t('editSuccess'))
       } else {
-        await createCourseGroup(values)
+        const createdGroup = await createCourseGroup(values)
+        console.log('📥 المجموعة المُنشأة من الخادم:', createdGroup)
         toast.success(t('addSuccess'))
       }
 
       router.push(`/course-groups`)
     } catch (error) {
-      console.error(error)
-      toast.error('something went wrong')
+      console.error('Form submission error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ غير متوقع'
+      toast.error(errorMessage)
     }
   }
 
@@ -307,6 +433,37 @@ export const CourseGroupForm = ({ mode = formMode.create, data }: Props) => {
 
           <FormField
             control={control}
+            name="branchId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('branch', { default: 'Branch' })}</FormLabel>
+                <FormControl>
+                  <Select
+                    value={
+                      field.value !== undefined && field.value !== null ? String(field.value) : ''
+                    }
+                    onValueChange={(e) => field.onChange(+e)}
+                    disabled={mode === formMode.view}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('selectBranchPlaceholder', { default: 'Select Branch' })} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branches?.map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id + ''}>
+                          {branch.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={control}
             name="levelId"
             render={({ field }) => (
               <FormItem>
@@ -393,6 +550,11 @@ export const CourseGroupForm = ({ mode = formMode.create, data }: Props) => {
                     disabled={mode === formMode.view}
                     selectedDaysIds={field.value}
                     setSelectedDaysIds={(daysIds) => {
+                      console.log('تغيير الأيام المختارة:', {
+                        oldValue: field.value,
+                        newValue: daysIds,
+                        daysData: days
+                      })
                       field.onChange(daysIds)
                     }}
                     days={days}

@@ -89,6 +89,25 @@ const AnimatedGradient: React.FC<AnimatedGradientProps> = ({
 }) => {
   const containerRef = useRef(null)
   const dimensions = useDimensions(containerRef)
+  const [randomValues, setRandomValues] = useState<{ [key: string]: number }[]>([])
+
+  // Generate random values on the client side only
+  useEffect(() => {
+    const values = colors.map(() => ({
+      top: Math.random() * 50,
+      left: Math.random() * 50,
+      tx1: Math.random() - 0.5,
+      ty1: Math.random() - 0.5,
+      tx2: Math.random() - 0.5,
+      ty2: Math.random() - 0.5,
+      tx3: Math.random() - 0.5,
+      ty3: Math.random() - 0.5,
+      tx4: Math.random() - 0.5,
+      ty4: Math.random() - 0.5,
+      size: randomInt(0.5, 1.5),
+    }))
+    setRandomValues(values)
+  }, [colors])
 
   const circleSize = React.useMemo(
     () => Math.max(dimensions.width, dimensions.height),
@@ -105,22 +124,24 @@ const AnimatedGradient: React.FC<AnimatedGradientProps> = ({
             key={index}
             className="animate-background-gradient absolute"
             style={
-              {
-                top: `${Math.random() * 50}%`,
-                left: `${Math.random() * 50}%`,
-                '--background-gradient-speed': `${1 / speed}s`,
-                '--tx-1': Math.random() - 0.5,
-                '--ty-1': Math.random() - 0.5,
-                '--tx-2': Math.random() - 0.5,
-                '--ty-2': Math.random() - 0.5,
-                '--tx-3': Math.random() - 0.5,
-                '--ty-3': Math.random() - 0.5,
-                '--tx-4': Math.random() - 0.5,
-                '--ty-4': Math.random() - 0.5,
-              } as React.CSSProperties
+              randomValues[index]
+                ? ({
+                    top: `${randomValues[index].top}%`,
+                    left: `${randomValues[index].left}%`,
+                    '--background-gradient-speed': `${1 / speed}s`,
+                    '--tx-1': randomValues[index].tx1,
+                    '--ty-1': randomValues[index].ty1,
+                    '--tx-2': randomValues[index].tx2,
+                    '--ty-2': randomValues[index].ty2,
+                    '--tx-3': randomValues[index].tx3,
+                    '--ty-3': randomValues[index].ty3,
+                    '--tx-4': randomValues[index].tx4,
+                    '--ty-4': randomValues[index].ty4,
+                  } as React.CSSProperties)
+                : {}
             }
-            width={circleSize * randomInt(0.5, 1.5)}
-            height={circleSize * randomInt(0.5, 1.5)}
+            width={randomValues[index] ? circleSize * randomValues[index].size : 0}
+            height={randomValues[index] ? circleSize * randomValues[index].size : 0}
             viewBox="0 0 100 100"
           >
             <circle
@@ -602,8 +623,10 @@ const Dashboard: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium">${(Math.random() * 1000).toFixed(2)}</p>
-                      <p className="text-xs text-foreground/70">
+                      <p className="text-sm font-medium" suppressHydrationWarning>
+                        ${(i * 234.56).toFixed(2)}
+                      </p>
+                      <p className="text-xs text-foreground/70" suppressHydrationWarning>
                         {new Date().toLocaleDateString()}
                       </p>
                     </div>

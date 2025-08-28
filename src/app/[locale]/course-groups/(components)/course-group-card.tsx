@@ -129,7 +129,7 @@ export function CourseGroupCard({ courseGroup, idx }: { courseGroup: ICourseGrou
                       <TableCell>{session.roomName}</TableCell>
                       <TableCell>
                         {session.startTime instanceof Date
-                          ? session.startTime.toLocaleString()
+                          ? new Date(session.startTime).toISOString().split('T')[0]
                           : session.startTime}
                       </TableCell>
                       <TableCell>{session.notes}</TableCell>

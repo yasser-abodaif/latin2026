@@ -26,4 +26,6 @@ export enum routes {
   qualificationType = 'qualification-type',
   receipts = 'receipts',
   expenses = 'expenses',
+  absences = 'absences',
+  roles = 'roles',
 }

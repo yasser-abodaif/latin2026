@@ -17,19 +17,57 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { SaveIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { getStudentBalance, getStudents } from '../../students/student.action'
-import { IStudent } from '../../students/(components)/student.interface'
-import { createReceipt } from '../receipt.action'
-import { toast } from 'sonner'
+import { getReceipts } from '../receipt.action'
 import { AnimatePresence, motion } from 'framer-motion'
-import { IStudentBalance } from './receipt.interface'
 import { Badge } from '@/components/ui/badge'
-
+import { getStudents, getStudentBalance } from '../../students/student.action'
+import { createReceipt } from '../receipt.action'
+import { IStudent } from '../../students/(components)/student.interface'
+import { IStudentBalance } from './receipt.interface'
+import { toast } from 'sonner'
 export default function ReceiptForm() {
+  const [showActions, setShowActions] = useState(false)
   const t = useTranslations('receipt')
   const [isLoading, setIsLoading] = useState(false)
   const [students, setStudents] = useState<IStudent[]>([])
   const [enrollments, setEnrollments] = useState<IStudentBalance[]>([])
+  const [employeeCode, setEmployeeCode] = useState<string | null>(null)
+  const [receiptNumber, setReceiptNumber] = useState('')
+  const [lastCreatedReceipt, setLastCreatedReceipt] = useState<any>(null)
+
+  // توليد رقم الإيصال التلقائي عند تحميل النموذج
+  useEffect(() => {
+    const generateReceiptNumber = async () => {
+      try {
+        const res = await getReceipts()
+        const receipts = res?.data || []
+        // ابحث عن آخر إيصال في السنة الحالية
+        const year = new Date().getFullYear() % 100
+        const yearPrefix = year.toString().padStart(2, '0')
+        const currentYearReceipts = receipts.filter((r: any) =>
+          r.receiptNumber?.startsWith(yearPrefix)
+        )
+        let lastNum = 10000
+        if (currentYearReceipts.length > 0) {
+          const lastReceipt = currentYearReceipts.reduce((a: any, b: any) =>
+            a.receiptNumber > b.receiptNumber ? a : b
+          )
+          const lastReceiptNum = parseInt(lastReceipt.receiptNumber?.slice(2) || '10000', 10)
+          lastNum = lastReceiptNum
+        }
+        setReceiptNumber(yearPrefix + (lastNum + 1))
+      } catch {
+        setReceiptNumber('')
+      }
+    }
+    generateReceiptNumber()
+  }, [])
+
+  // جلب userName من localStorage عند تحميل النموذج
+  useEffect(() => {
+    const userName = localStorage.getItem('userName')
+    setEmployeeCode(userName || null)
+  }, [])
 
   const form = useForm<ReceiptSchema>({
     resolver: zodResolver(ReceiptSchema),
@@ -51,21 +89,15 @@ export default function ReceiptForm() {
     const fetchStudentBalance = async () => {
       try {
         setIsLoading(true)
-        const res = await getStudentBalance(studentId!)
-      } catch (error) {
-        console.log(error)
+        await getStudentBalance(studentId!)
+      } catch {
+        // ignore
       } finally {
         setIsLoading(false)
       }
     }
     if (studentId) {
       fetchStudentBalance()
-        .then((res) => {
-          console.log(res)
-        })
-        .catch((err) => {
-          console.log(err)
-        })
     }
   }, [studentId])
 
@@ -78,10 +110,10 @@ export default function ReceiptForm() {
       if (studentId && receiptType === 'student_payment') {
         try {
           setIsLoading(true)
-          const res = await getStudentBalance(studentId)
-          setEnrollments(res)
-        } catch (error) {
-          console.log(error)
+          const result = await getStudentBalance(studentId)
+          setEnrollments(result)
+        } catch {
+          // ignore
         } finally {
           setIsLoading(false)
         }
@@ -95,13 +127,25 @@ export default function ReceiptForm() {
   const onSubmit = async (data: ReceiptSchema) => {
     try {
       setIsLoading(true)
-      await createReceipt(data)
+      await createReceipt({ ...data, receiptNumber })
+      
+      // حفظ بيانات الإيصال المُنشأ حديثاً
+      const selectedStudent = students.find(s => s.id === Number(data.studentId))
+      setLastCreatedReceipt({
+        ...data,
+        receiptNumber,
+        studentName: selectedStudent?.name,
+        studentPhone: selectedStudent?.phone,
+        employeeCode,
+        createdAt: new Date().toISOString()
+      })
+      
       toast.success('Success', {
         description: 'Receipt created successfully.',
       })
-
       form.reset()
-    } catch (error) {
+      setShowActions(true)
+    } catch {
       toast.error('Error', {
         description: 'Failed to create receipt.',
       })
@@ -110,9 +154,41 @@ export default function ReceiptForm() {
     }
   }
 
+  // دالة طباعة
+  const handlePrint = () => {
+    window.print()
+  }
+
+  // دالة إرسال عبر واتساب
+  const handleWhatsApp = () => {
+    if (!lastCreatedReceipt?.studentPhone) {
+      toast.error('خطأ', {
+        description: 'رقم هاتف الطالب غير متوفر',
+      })
+      return
+    }
+    
+    const message = `إيصال رقم: ${receiptNumber}\nالطالب: ${lastCreatedReceipt.studentName}\nالمبلغ: ${lastCreatedReceipt.amount}\nالموظف: ${employeeCode || ''}`
+    const phoneNumber = lastCreatedReceipt.studentPhone.replace(/[^0-9]/g, '') // إزالة الرموز غير الرقمية
+    const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
+    window.open(url, '_blank')
+  }
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-wrap gap-4">
+        {/* رقم الإيصال التلقائي */}
+        <div className="w-full">
+          <FormLabel>رقم الإيصال</FormLabel>
+          <Input value={receiptNumber} readOnly className="w-60 bg-gray-100" />
+        </div>
+        {/* كود الموظف */}
+        {employeeCode && (
+          <div className="w-full">
+            <FormLabel>كود الموظف</FormLabel>
+            <Input value={employeeCode} readOnly className="w-60 bg-gray-100" />
+          </div>
+        )}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -355,7 +431,7 @@ export default function ReceiptForm() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: -0 }}
           transition={{ duration: 0.5 }}
-          className="flex justify-end"
+          className="flex justify-end gap-2"
         >
           <Button type="submit" className="justify-end self-end" disabled={isLoading}>
             <span className="flex items-center gap-2">
@@ -363,8 +439,76 @@ export default function ReceiptForm() {
               {t('save')}
             </span>
           </Button>
+          {showActions && (
+            <>
+              <Button type="button" variant="outline" onClick={handlePrint}>
+                طباعة
+              </Button>
+              <Button type="button" variant="outline" onClick={handleWhatsApp}>
+                إرسال عبر WhatsApp
+              </Button>
+            </>
+          )}
         </motion.div>
       </form>
+      
+      {/* عرض بيانات الإيصال الجديد */}
+      {lastCreatedReceipt && (
+        <div className="mt-8 p-6 bg-gray-50 rounded-lg border">
+          <h3 className="text-lg font-semibold mb-4">بيانات الإيصال المُنشأ</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <span className="font-medium">رقم الإيصال:</span>
+              <p className="text-gray-700">{lastCreatedReceipt.receiptNumber}</p>
+            </div>
+            <div>
+              <span className="font-medium">اسم الطالب:</span>
+              <p className="text-gray-700">{lastCreatedReceipt.studentName}</p>
+            </div>
+            <div>
+              <span className="font-medium">رقم الهاتف:</span>
+              <p className="text-gray-700">{lastCreatedReceipt.studentPhone || 'غير متوفر'}</p>
+            </div>
+            <div>
+              <span className="font-medium">المبلغ:</span>
+              <p className="text-gray-700">{lastCreatedReceipt.amount} ريال</p>
+            </div>
+            <div>
+              <span className="font-medium">نوع الإيصال:</span>
+              <p className="text-gray-700">
+                {lastCreatedReceipt.receiptType === 'student_payment' ? 'دفع طالب' : 'رسوم خدمة'}
+              </p>
+            </div>
+            <div>
+              <span className="font-medium">الموظف:</span>
+              <p className="text-gray-700">{lastCreatedReceipt.employeeCode}</p>
+            </div>
+            {lastCreatedReceipt.serviceType && (
+              <div>
+                <span className="font-medium">نوع الخدمة:</span>
+                <p className="text-gray-700">{lastCreatedReceipt.serviceType}</p>
+              </div>
+            )}
+          </div>
+          
+          {/* أزرار الإجراءات */}
+          <div className="flex gap-3 mt-6">
+            <Button type="button" variant="outline" onClick={handlePrint}>
+              طباعة الإيصال
+            </Button>
+            {lastCreatedReceipt.studentPhone && (
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleWhatsApp}
+                className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+              >
+                إرسال عبر WhatsApp
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
     </Form>
   )
 }

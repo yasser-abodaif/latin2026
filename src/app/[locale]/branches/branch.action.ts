@@ -9,8 +9,30 @@ import { axiosInstance } from '@/lib/axiosInstance'
 const url = `${apis.branches}`
 
 export async function getBranches() {
-  const res = await axiosInstance.get(`${url}/${apis.pagination}`)
-  return res.data as IResponse<IBranch[]>
+  try {
+    console.log('🔍 getBranches: بدء طلب الفروع من الخادم')
+    
+    // استخدام axiosInstance مباشرة - سيتولى interceptor إضافة التوكن
+    const res = await axiosInstance.get(`${url}/${apis.pagination}`)
+    
+    console.log('✅ getBranches: نجح الحصول على الفروع', {
+      count: res.data?.data?.length || 0,
+      totalCount: res.data?.totalCount || 0
+    })
+    
+    return res.data as IResponse<IBranch[]>
+  } catch (error: any) {
+    console.error('❌ getBranches خطأ:', {
+      status: error?.response?.status,
+      statusText: error?.response?.statusText,
+      data: error?.response?.data,
+      url: error?.config?.url,
+      hasAuthHeader: Boolean(error?.config?.headers?.Authorization)
+    })
+    
+    // إعادة رمي الخطأ للسماح للـ interceptor بمعالجته
+    throw error
+  }
 }
 
 export async function getBranch(id: number) {

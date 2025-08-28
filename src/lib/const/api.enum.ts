@@ -36,4 +36,5 @@ export enum apis {
   studentPayment = 'FinancialOperations/student/pay',
   serviceCharge = 'FinancialOperations/service-charge',
   expenses = 'Expenses',
+  roles = 'Roles',
 }

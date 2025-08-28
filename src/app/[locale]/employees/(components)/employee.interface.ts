@@ -5,6 +5,7 @@ export interface IEmployee {
   phone: string
   address: string
   nationalId: string
+  birthDate: string
   cityId: number
   cityName?: string
   department: string
@@ -12,4 +13,9 @@ export interface IEmployee {
   salaryTypeId: number
   salaryTypeName?: string
   jobTitle: string
+  status: 'ACTIVE' | 'SUSPENDED' | 'TRAINING' | 'TERMINATED'
+  educationalQualificationId: number
+  educationalQualificationName?: string
+  roleId: number
+  roleName?: string
 }

@@ -32,20 +32,55 @@ export const BranchSelect = () => {
   const branches = useBranches()
   const [selected, setSelected] = useState<string | undefined>(undefined)
 
+  console.log('🏢 Branch Select Debug:', {
+    branchesCount: branches?.length || 0,
+    branches: branches?.map(b => ({ id: b.id, name: b.name })) || [],
+    selectedBranch: selected
+  })
+
   useEffect(() => {
     // Check localStorage and cookies for saved branch
     const local = typeof window !== 'undefined' ? localStorage.getItem(LOCAL_STORAGE_KEY) : null
     const cookie = typeof document !== 'undefined' ? getCookie(COOKIE_KEY) : null
+    
+    console.log('🔍 Branch Select Storage Check:', {
+      localStorage: local,
+      cookie: cookie,
+      branchesLoaded: branches?.length > 0
+    })
+    
     if (local) setSelected(local)
     else if (cookie) setSelected(cookie)
-  }, [])
+    else if (branches?.length > 0 && !selected) {
+      // Auto-select first branch if none selected
+      const firstBranch = branches[0].id.toString()
+      setSelected(firstBranch)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(LOCAL_STORAGE_KEY, firstBranch)
+      }
+      setCookie(COOKIE_KEY, firstBranch)
+    }
+  }, [branches, selected])
 
   const handleChange = (value: string) => {
+    console.log('🔄 Branch Selection Changed:', value)
     setSelected(value)
     if (typeof window !== 'undefined') {
       localStorage.setItem(LOCAL_STORAGE_KEY, value)
+      // Dispatch custom event to notify other components
+      window.dispatchEvent(new CustomEvent('branchChanged', { detail: value }))
     }
     setCookie(COOKIE_KEY, value)
+  }
+
+  if (!branches || branches.length === 0) {
+    return (
+      <Select disabled>
+        <SelectTrigger className="w-48">
+          <SelectValue placeholder="Loading branches..." />
+        </SelectTrigger>
+      </Select>
+    )
   }
 
   return (

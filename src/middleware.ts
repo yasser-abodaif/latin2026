@@ -2,7 +2,11 @@ import createMiddleware from 'next-intl/middleware'
 import { routing } from '@/i18n/routing'
 import { NextRequest } from 'next/server'
 
-const intlMiddleware = createMiddleware(routing)
+const intlMiddleware = createMiddleware({
+  locales: routing.locales,
+  defaultLocale: routing.defaultLocale,
+  localePrefix: routing.localePrefix,
+})
 
 export default function combinedMiddleware(req: NextRequest) {
   // Apply internationalization middleware to all internationalized paths

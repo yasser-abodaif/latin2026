@@ -5,6 +5,7 @@ export const ReceiptSchema = z.object({
   branchId: z.coerce.number().optional(),
   studentId: z.coerce.number().optional(),
   enrollmentId: z.coerce.number().optional(),
+  receiptNumber: z.string().optional(),
   receiptType: z.enum(['student_payment', 'service_charge'], {
     required_error: 'Receipt type is required.',
   }),

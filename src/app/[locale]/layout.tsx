@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono, Cairo } from 'next/font/google'
+import { Geist, Geist_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/provider/theme-provider'
 import { HTMLAttributes } from '@/components/provider/html-attributes'
 import '../globals.css'
@@ -10,7 +10,6 @@ import { getMessages } from 'next-intl/server'
 import { AppBreadcrumb } from '@/components/layout/app-breadcrumb'
 import { Toaster } from '@/components/ui/sonner'
 import { Footer } from '@/components/layout/footer'
-import { SideMenu } from '@/components/layout/sidemenu/side-menu'
 import { DesktopSideMenu } from '@/components/layout/sidemenu/desktop-side-menu'
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -20,59 +19,72 @@ const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 })
-const cairo = Cairo({
-  variable: '--font-cairo',
-  subsets: ['latin'],
-})
+// Note: Cairo font is loaded via CSS to avoid Turbopack internal import issues.
 
 export const metadata: Metadata = {
   title: 'Latin Academy',
   description: 'Learn Latin with ease',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
+    other: {
+      rel: 'apple-touch-icon-precomposed',
+      url: '/favicon.ico',
+    },
+  },
 }
 
-export default async function LocaleLayout({
-  children,
-  params,
-}: Readonly<{
-  children: React.ReactNode
-  params: { locale: string }
-}>) {
-  const { locale } = params
-  // Validate that the incoming locale is valid
-  if (locale !== 'en' && locale !== 'ar') {
-    notFound()
-  }
-  const messages = await getMessages()
+export default async function LocaleLayout(props: any) {
+  const { children, params } = await Promise.resolve(props)
+  const { locale } = await Promise.resolve(params)
+  try {
+    // Validate that the incoming locale is valid
+    if (locale !== 'en' && locale !== 'ar') {
+      notFound()
+    }
+    const messages = await getMessages({ locale })
 
-  return (
-    <NextIntlClientProvider messages={messages} locale={locale}>
-      {/* Client component that sets HTML attributes on mount */}
-      <HTMLAttributes locale={locale} />
+    return (
+      <NextIntlClientProvider messages={messages} locale={locale}>
+        {/* Client component that sets HTML attributes on mount */}
+        <HTMLAttributes locale={locale} />
 
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-        <div
-          className={`${geistSans.variable} ${geistMono.variable} ${cairo.variable} flex h-screen w-screen flex-col gap-4 overflow-hidden bg-neutral-100 antialiased dark:bg-neutral-900`}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
         >
-          <NavBar />
-          <div className="flex w-full flex-grow gap-4 overflow-auto">
-            <DesktopSideMenu />
-            <div className="flex flex-1 grow overflow-hidden rounded-lg">
-              <main className="flex grow overflow-auto">
-                <div className="flex grow">
-                  <div className="mx-auto w-full max-w-screen-2xl flex grow flex-col gap-3 px-4 pe-4 md:px-0 md:pe-4">
-                    <AppBreadcrumb />
-                    <div className="flex w-full grow flex-col overflow-auto rounded-xl border bg-white p-4 shadow-sm dark:border-border/40 dark:bg-black">
-                      <div className="flex w-full grow">{children}</div>
+          <div
+            className={`${geistSans.variable} ${geistMono.variable} flex h-screen w-screen flex-col gap-4 overflow-hidden bg-neutral-100 antialiased dark:bg-neutral-900`}
+            style={{ fontFamily: 'var(--font-cairo)' }}
+          >
+            <NavBar />
+            <div className="flex w-full flex-grow gap-4 overflow-auto">
+              <DesktopSideMenu />
+              <div className="flex flex-1 grow overflow-hidden rounded-lg">
+                <main className="flex grow overflow-auto">
+                  <div className="flex grow">
+                    <div className="mx-auto flex w-full max-w-screen-2xl grow flex-col gap-3 px-4 pe-4 md:px-0 md:pe-4">
+                      <AppBreadcrumb />
+                      <div className="flex w-full grow flex-col overflow-auto rounded-xl border bg-white p-4 shadow-sm dark:border-border/40 dark:bg-black">
+                        <div className="flex w-full grow">{children}</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </main>
+                </main>
+              </div>
             </div>
+            <Footer />
           </div>
-          <Footer />
-        </div>
-        <Toaster richColors />
-      </ThemeProvider>
-    </NextIntlClientProvider>
-  )
+          <Toaster richColors />
+        </ThemeProvider>
+      </NextIntlClientProvider>
+    )
+  } catch (error) {
+    console.error('LocaleLayout error:', error)
+    // If messages fail to load or another error occurs, show 404
+    notFound()
+  }
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { employeeSchema, EmployeeSchema } from '@/lib/schema/employee.schema'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -31,6 +31,9 @@ import { useCities } from '../../cities/(components)/useCities'
 import { useSalaryTypes } from '@/components/hooks/useSalaryType'
 import { Link, useRouter } from '@/i18n/routing'
 import { PasswordInput } from '@/components/ui/password-input'
+import useSWR from 'swr'
+import { axiosFetcher } from '@/lib/swr-fetchers'
+import { EmployeeStatus } from '@/lib/schema/employee.schema'
 
 type Props = {
   mode?: formMode
@@ -39,6 +42,7 @@ type Props = {
 
 export const EmployeeForm = ({ mode = formMode.create, data }: Props) => {
   const t = useTranslations('employee')
+  const tTable = useTranslations('table')
   const cities = useCities()
   const { salaryTypes } = useSalaryTypes()
   const router = useRouter()
@@ -47,29 +51,33 @@ export const EmployeeForm = ({ mode = formMode.create, data }: Props) => {
     id: data?.id ? data.id : undefined,
     name: data?.name ?? '',
     email: data?.email ?? '',
-    password: '',
+    password: mode === formMode.create ? '' : undefined,
     phone: data?.phone ?? '',
     address: data?.address ?? '',
     nationalId: data?.nationalId ?? '',
+    birthDate: data?.birthDate ?? '',
     cityId: data?.cityId ?? 0,
     department: data?.department ?? '',
     salary: data?.salary ?? 0,
     salaryTypeId: data?.salaryTypeId ?? 1,
     jobTitle: data?.jobTitle ?? '',
+    status: data?.status ?? EmployeeStatus.ACTIVE,
+    educationalQualificationId: data?.educationalQualificationId ?? 0,
+    roleId: data?.roleId ?? 0,
   }
 
   const methods = useForm<EmployeeSchema>({
     resolver: zodResolver(employeeSchema),
     defaultValues,
     disabled: mode === formMode.view,
+    mode: 'onChange',
   })
 
-  const { control, handleSubmit, reset } = methods
+  const { control, handleSubmit, reset, setValue, getValues } = methods
 
   const onSubmit = async (values: EmployeeSchema) => {
-    toast.info(t('creating'))
     try {
-      toast.info(t('creating'))
+      toast.info(mode === formMode.edit ? t('updating') : t('creating'))
       if (mode === formMode.edit && data?.id) {
         await updateEmployee(data.id, values)
         toast.success(t('editSuccess'))
@@ -80,6 +88,7 @@ export const EmployeeForm = ({ mode = formMode.create, data }: Props) => {
       router.push(`/${routes.employees}`)
     } catch (error) {
       console.error(error)
+      toast.error(t('error'))
     }
   }
 
@@ -88,6 +97,26 @@ export const EmployeeForm = ({ mode = formMode.create, data }: Props) => {
     if (mode === formMode.edit) return t('edit')
     return t('view')
   }
+
+  // استدعاء hooks للحصول على المؤهلات والأدوار
+  // backend uses these PascalCase endpoints (see swagger)
+  const { data: qualifications = [] as { id: number; name: string }[] } = useSWR(
+    '/api/EducationalQualificationDescription',
+    axiosFetcher
+  )
+  // Use axiosFetcher so axiosInstance interceptors (cookies/auth) are applied
+  const { data: roles = [] as { id: number; name: string }[] } = useSWR('/api/Roles', axiosFetcher)
+
+  // If creating a new employee and a roles list is available, default to the first role
+  useEffect(() => {
+    if (mode === formMode.create && roles?.length) {
+      const current = getValues('roleId')
+      if (!current || current === 0) {
+        setValue('roleId', roles[0].id)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roles, mode])
 
   return (
     <Form {...methods}>
@@ -149,21 +178,21 @@ export const EmployeeForm = ({ mode = formMode.create, data }: Props) => {
             )}
           />
 
-          {/* {mode === formMode.create && ( */}
-          <FormField
-            control={control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('password')}</FormLabel>
-                <FormControl>
-                  <PasswordInput placeholder={t('password')} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          {/* )} */}
+          {mode === formMode.create && (
+            <FormField
+              control={control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('password')}</FormLabel>
+                  <FormControl>
+                    <PasswordInput placeholder={t('password')} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           <FormField
             control={control}
@@ -305,6 +334,118 @@ export const EmployeeForm = ({ mode = formMode.create, data }: Props) => {
                           {type.name}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={control}
+            name="birthDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('birthDate')}</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('status')}</FormLabel>
+                <FormControl>
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={mode === formMode.view}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('selectStatus')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={EmployeeStatus.ACTIVE}>{t('statusActive')}</SelectItem>
+                      <SelectItem value={EmployeeStatus.SUSPENDED}>
+                        {t('statusSuspended')}
+                      </SelectItem>
+                      <SelectItem value={EmployeeStatus.TRAINING}>{t('statusTraining')}</SelectItem>
+                      <SelectItem value={EmployeeStatus.TERMINATED}>
+                        {t('statusTerminated')}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={control}
+            name="educationalQualificationId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('educationalQualification')}</FormLabel>
+                <FormControl>
+                  <Select
+                    value={field.value + ''}
+                    onValueChange={(e) => field.onChange(+e)}
+                    disabled={mode === formMode.view}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('selectQualification')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {qualifications && qualifications.length > 0 ? (
+                        qualifications.map((qual: { id: number; name: string }) => (
+                          <SelectItem key={qual.id} value={qual.id + ''}>
+                            {qual.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="">{tTable('noResults') || '—'}</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={control}
+            name="roleId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('role')}</FormLabel>
+                <FormControl>
+                  <Select
+                    value={field.value + ''}
+                    onValueChange={(e) => field.onChange(+e)}
+                    disabled={mode === formMode.view}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('selectRole')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles && roles.length > 0 ? (
+                        roles.map((role: { id: number; name: string }) => (
+                          <SelectItem key={role.id} value={role.id + ''}>
+                            {role.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="">{tTable('noResults') || '—'}</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </FormControl>

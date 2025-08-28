@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -133,7 +134,8 @@ export const ActivateGroupModal: React.FC<ActivateGroupModalProps> = ({
       onClose?.()
       onActivated?.()
       router.push(`/${routes.courseGroups}`)
-    } catch (e) {
+    } catch (error) {
+      console.error('Error activating group:', error)
       toast.error(t('activateGroup'), {
         description: t('activating'),
       })
@@ -153,6 +155,9 @@ export const ActivateGroupModal: React.FC<ActivateGroupModalProps> = ({
           <DialogTitle className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-2xl font-bold text-transparent">
             {t('title', { name: group.name })}
           </DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            Review student enrollments and set individual discounts before activating the course group.
+          </DialogDescription>
         </DialogHeader>
         <div className="mt-6 overflow-hidden rounded-xl border bg-card shadow-sm">
           <div className="flex flex-col gap-4 p-4"></div>

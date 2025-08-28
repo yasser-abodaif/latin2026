@@ -4,7 +4,7 @@ export interface ILecture {
   id: number
   roomId: number
   instructorId: number
-  startTime: Date
+  startTime: Date | string
   groupId: number
   notes: string
   students: SessionStudent[]

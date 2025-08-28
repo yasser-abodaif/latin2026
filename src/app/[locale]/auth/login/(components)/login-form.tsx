@@ -11,7 +11,7 @@ import { login } from '../login.action'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { LoginResponse } from './login.interface'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { PasswordInput } from '@/components/ui/password-input'
 import {
@@ -23,7 +23,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Lock, ArrowRight } from 'lucide-react'
+import { Mail, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
 
@@ -36,14 +36,34 @@ export function LoginForm({ loginSuccess, hideHeader = false }: LoginFormProps) 
   const t = useTranslations('auth')
   const locale = useLocale()
   const router = useRouter()
-  const pathname = usePathname()
   const [isLoading, setIsLoading] = useState(false)
   const [focusedInput, setFocusedInput] = useState<string | null>(null)
-  const defaultValues: LoginFormData = {
-    userNameOrEmail: '',
-    password: '',
-    rememberMe: false,
+  
+  // تحميل البيانات المحفوظة من localStorage
+  const getDefaultValues = (): LoginFormData => {
+    if (typeof window !== 'undefined') {
+      const rememberedUser = localStorage.getItem('rememberedUser')
+      if (rememberedUser) {
+        try {
+          const parsed = JSON.parse(rememberedUser)
+          return {
+            userNameOrEmail: parsed.userNameOrEmail || '',
+            password: '',
+            rememberMe: parsed.rememberMe || false,
+          }
+        } catch (error) {
+          console.error('Error parsing remembered user:', error)
+        }
+      }
+    }
+    return {
+      userNameOrEmail: '',
+      password: '',
+      rememberMe: false,
+    }
   }
+  
+  const defaultValues: LoginFormData = getDefaultValues()
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -59,15 +79,25 @@ export function LoginForm({ loginSuccess, hideHeader = false }: LoginFormProps) 
         Boolean(data.rememberMe)
       )
       // Store tokens in cookies
-
       toast.success(t('loginSuccess'))
-      if (pathname.includes('/auth/login')) {
-        router.push(`/${locale}`)
-      }
 
-      loginSuccess?.(response)
-    } catch (error) {
-      toast.error(t('loginError'))
+      if (loginSuccess) {
+        loginSuccess(response)
+      } else {
+        // Check for returnUrl in query params
+        const searchParams = new URLSearchParams(window.location.search)
+        const returnUrl = searchParams.get('returnUrl')
+
+        // If there's a returnUrl, redirect there, otherwise redirect to home
+        if (returnUrl) {
+          router.push(decodeURIComponent(returnUrl))
+        } else {
+          router.push(`/${locale}`)
+        }
+      }
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || t('loginError')
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -160,7 +190,8 @@ export function LoginForm({ loginSuccess, hideHeader = false }: LoginFormProps) 
                           className="border-border/50 bg-background/50 pe-10 transition-all duration-200 focus:border-primary/50"
                           onFocus={() => setFocusedInput('userNameOrEmail')}
                           onBlur={() => setFocusedInput(null)}
-                          autoComplete="off"
+                          autoComplete="username"
+                          tabIndex={1}
                         />
                         {focusedInput === 'userNameOrEmail' && (
                           <motion.div
@@ -197,6 +228,8 @@ export function LoginForm({ loginSuccess, hideHeader = false }: LoginFormProps) 
                           className="w-full border-border/50 bg-background/50 pe-10 transition-all duration-200 focus:border-primary/50"
                           onFocus={() => setFocusedInput('password')}
                           onBlur={() => setFocusedInput(null)}
+                          autoComplete="current-password"
+                          tabIndex={2}
                         />
                         {focusedInput === 'password' && (
                           <motion.div
@@ -224,13 +257,18 @@ export function LoginForm({ loginSuccess, hideHeader = false }: LoginFormProps) 
                     <div className="flex items-center gap-2">
                       <FormControl>
                         <Checkbox
+                          id="rememberMe"
                           checked={!!field.value}
                           onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                          tabIndex={3}
                         />
                       </FormControl>
-                      <FormLabel className="text-sm text-foreground/80">
+                      <label
+                        htmlFor="rememberMe"
+                        className="cursor-pointer text-sm text-foreground/80"
+                      >
                         {t('rememberMe')}
-                      </FormLabel>
+                      </label>
                     </div>
                   </div>
                 </FormItem>
@@ -253,6 +291,7 @@ export function LoginForm({ loginSuccess, hideHeader = false }: LoginFormProps) 
                 type="submit"
                 disabled={isLoading}
                 className="group relative mt-2 w-full overflow-hidden"
+                tabIndex={4}
               >
                 <motion.div
                   className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0"

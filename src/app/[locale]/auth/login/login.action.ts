@@ -3,7 +3,7 @@
 import { axiosInstance } from '@/lib/axiosInstance'
 import { apis } from '@/lib/const/api.enum'
 import { cookies } from 'next/headers'
-import { setCookie, deleteCookie, getCookie, getCookies } from 'cookies-next/server'
+import { setCookie, deleteCookie, getCookie } from 'cookies-next/server'
 import { LoginRequest, LoginResponse } from './(components)/login.interface'
 
 async function saveTokenAndRefreshToken(response: LoginResponse, rememberMe: boolean) {
@@ -36,6 +36,17 @@ export async function login(data: LoginRequest, rememberMe: boolean = false) {
   try {
     const response = await axiosInstance.post<LoginResponse>(apis.login, data)
     await saveTokenAndRefreshToken(response.data, rememberMe)
+    
+    // حفظ بيانات المستخدم في localStorage إذا كان "تذكرني" مفعل
+    if (rememberMe && typeof window !== 'undefined') {
+      localStorage.setItem('rememberedUser', JSON.stringify({
+        userNameOrEmail: data.userNameOrEmail,
+        rememberMe: true
+      }))
+    } else if (typeof window !== 'undefined') {
+      localStorage.removeItem('rememberedUser')
+    }
+    
     return response.data
   } catch (error) {
     console.error('Login error:', error)
@@ -49,16 +60,26 @@ export async function refreshToken() {
   const rememberMe = String(rememberPref ?? '1') === '1'
 
   if (!refreshToken) {
+    console.error('refreshToken: none found in cookies')
     throw new Error('No refresh token found')
   }
+
+  console.log('refreshToken: found (will attempt refresh)')
 
   try {
     const response = await axiosInstance.post(`Auth/refresh`, {
       refreshToken,
     })
+    console.log('refreshToken: refresh response status:', response.status)
     await saveTokenAndRefreshToken(response.data, rememberMe)
     return response.data
-  } catch (error) {
+  } catch (error: any) {
+    try {
+      console.error('refreshToken error -> status:', error?.response?.status)
+      console.error('refreshToken error response data:', error?.response?.data)
+    } catch (logErr) {
+      console.error('refreshToken: failed to log error details', logErr)
+    }
     await logout()
     throw error
   }

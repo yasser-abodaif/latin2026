@@ -33,18 +33,30 @@ export const CourseGroupMainView = ({ data }: CourseGroupMainViewProps) => {
   // Group actions for each row
   const extraActions = (item: ICourseGroup) => (
     <>
-      <div
-        role="button"
-        onClick={() => {
-          router.push(`/${routes.courseGroups}/activate/${item.id}`)
-          // setSelectedItem(item)
-          // setShowModal(true)
-        }}
-        className="flex w-full items-center justify-between p-2 text-sm hover:bg-gray-100"
-      >
-        <span className="text-sm">{t('activate')}</span>
-        <Check className="size-4" />
-      </div>
+      {item.statusId !== 2 && (
+        <div
+          role="button"
+          onClick={() => {
+            router.push(`/${routes.courseGroups}/activate/${item.id}`)
+          }}
+          className="flex w-full items-center justify-between p-2 text-sm hover:bg-gray-100"
+        >
+          <span className="text-sm">{t('activate')}</span>
+          <Check className="size-4" />
+        </div>
+      )}
+      {item.statusId === 2 && (
+        <div
+          role="button"
+          onClick={() => {
+            router.push(`/${routes.courseGroups}/${item.id}/attendance`)
+          }}
+          className="flex w-full items-center justify-between p-2 text-sm hover:bg-gray-100"
+        >
+          <span className="text-sm">{t('manageAttendance')}</span>
+          <Check className="size-4" />
+        </div>
+      )}
     </>
   )
 

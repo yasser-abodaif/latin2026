@@ -7,6 +7,7 @@ export const courseGroupSchema = z.object({
   endDate: z.date().min(new Date()),
   instructorId: z.number(),
   courseId: z.number(),
+  branchId: z.number(),
   statusId: z.number().default(1),
   studentIds: z.array(z.number()),
   levelId: z.number(),

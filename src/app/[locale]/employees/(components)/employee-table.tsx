@@ -12,6 +12,7 @@ type Props = {
 
 export const EmployeeTable = ({ data }: Props) => {
   const t = useTranslations('employee')
+  const tAny = t as unknown as (k: any) => string
   const columns: ColumnDef<IEmployee>[] = [
     {
       accessorKey: 'name',
@@ -34,8 +35,32 @@ export const EmployeeTable = ({ data }: Props) => {
       header: t('jobTitle'),
     },
     {
+      accessorKey: 'status',
+      header: t('status'),
+      cell: ({ row }) => {
+        const s = row.original.status
+        switch (s) {
+          case 'ACTIVE':
+            return tAny('statusACTIVE')
+          case 'SUSPENDED':
+            return tAny('statusSUSPENDED')
+          case 'TRAINING':
+            return tAny('statusTRAINING')
+          case 'TERMINATED':
+            return tAny('statusTERMINATED')
+          default:
+            return tAny('status')
+        }
+      },
+    },
+    {
       accessorKey: 'salary',
       header: t('salary'),
+    },
+    {
+      accessorKey: 'educationalQualificationId',
+      header: t('educationalQualification'),
+      cell: ({ row }) => row.original.educationalQualificationName || '',
     },
   ]
   return <AppTable title={t('title')} columns={columns} data={data} mainRoute={routes.employees} />

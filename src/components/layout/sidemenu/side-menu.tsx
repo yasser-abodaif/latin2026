@@ -25,6 +25,7 @@ import {
   UserRound,
   Receipt,
   CreditCard,
+  ShieldCheck,
 } from 'lucide-react'
 import { Link, usePathname } from '@/i18n/routing'
 import { routes } from '@/lib/const/routes.enum'
@@ -71,6 +72,7 @@ export const SideMenu = ({ showOnlyIcons = false }: SideMenuProps) => {
         { href: `/${routes.courses}`, label: t('courses'), icon: BookOpen },
         { href: `/${routes.courseGroups}`, label: t('course-groups'), icon: Users2 },
         { href: `/${routes.lecturers}`, label: t('lecturers'), icon: GraduationCap },
+        { href: `/${routes.absences}`, label: t('absences'), icon: Users2 },
       ],
     },
     {
@@ -106,9 +108,14 @@ export const SideMenu = ({ showOnlyIcons = false }: SideMenuProps) => {
         { href: `/${routes.cities}`, label: t('cities'), icon: Building2 },
         { href: `/${routes.areas}`, label: t('areas'), icon: MapPin },
         { href: `/${routes.agreements}`, label: t('agreements'), icon: FileText },
-        { href: `/${routes.qualificationDescription}`, label: t('qualification-description'), icon: LucideGraduationCap },
+        {
+          href: `/${routes.qualificationDescription}`,
+          label: t('qualification-description'),
+          icon: LucideGraduationCap,
+        },
         { href: `/${routes.qualificationIssuer}`, label: t('qualification-issuer'), icon: School },
         { href: `/${routes.qualificationType}`, label: t('qualification-type'), icon: Award },
+        { href: `/admin/${routes.roles}`, label: t('roles'), icon: ShieldCheck },
       ],
     },
   ]
@@ -127,9 +134,7 @@ export const SideMenu = ({ showOnlyIcons = false }: SideMenuProps) => {
       <Accordion type="multiple" className="w-full">
         {groups.map((group) => (
           <AccordionItem value={group.key} key={group.key} className="border-none">
-            <AccordionTrigger
-              className="rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground"
-            >
+            <AccordionTrigger className="rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground">
               {group.label}
             </AccordionTrigger>
             <AccordionContent className="pl-2 pt-1">
@@ -170,7 +175,9 @@ export const SideMenuMobile = ({ item }: SideMenuElementProps) => {
       href={item.href}
       className={cn(
         'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground',
-        pathname.includes(item.href) && item.href !== '/' ? 'bg-accent text-accent-foreground' : 'transparent'
+        pathname.includes(item.href) && item.href !== '/'
+          ? 'bg-accent text-accent-foreground'
+          : 'transparent'
       )}
     >
       <Icon className="h-4 w-4" />
@@ -192,7 +199,9 @@ export const SideMenuDesktop = ({ item, showOnlyIcons = false }: SideMenuElement
             href={item.href}
             className={cn(
               'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground',
-              pathname.includes(item.href) && item.href !== '/' ? 'bg-accent text-accent-foreground' : 'transparent',
+              pathname.includes(item.href) && item.href !== '/'
+                ? 'bg-accent text-accent-foreground'
+                : 'transparent',
               showOnlyIcons && 'justify-center'
             )}
           >
